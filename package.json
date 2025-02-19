@@ -1,0 +1,65 @@
+{
+    "name": "personal-audio-mixer",
+    "version": "1.0.0",
+    "description": "Control volume of individual applications from a single interface",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron .",
+      "install": "node-gyp rebuild",
+      "rebuild": "node-gyp rebuild",
+      "build": "electron-builder",
+      "build:win": "electron-builder --win",
+      "build:mac": "electron-builder --mac",
+      "build:linux": "electron-builder --linux"
+    },
+    "author": "Leonardo Georgeto",
+    "license": "MIT",
+    "dependencies": {
+      "bindings": "^1.5.0",
+      "node-addon-api": "^5.0.0"
+    },
+    "devDependencies": {
+      "electron": "^26.0.0",
+      "electron-builder": "^24.0.0",
+      "node-gyp": "^9.0.0"
+    },
+    "build": {
+      "appId": "com.yourusername.ampcore",
+      "productName": "AmpCore",
+      "files": [
+        "**/*",
+        "!native-modules/build/",
+        "**/*.node"
+      ],
+      "extraResources": [
+        {
+          "from": "build/Release/",
+          "to": ".",
+          "filter": ["*.node"]
+        }
+      ],
+      "directories": {
+        "buildResources": "resources",
+        "output": "dist"
+      },
+      "win": {
+        "target": [
+          {
+            "target": "nsis",
+            "arch": ["x64"]
+          },
+          {
+            "target": "portable",
+            "arch": ["x64"]
+          }
+        ],
+        "icon": "resources/icon.ico"
+      },
+      "nsis": {
+        "oneClick": false,
+        "allowToChangeInstallationDirectory": true,
+        "createDesktopShortcut": true,
+        "shortcutName": "AmpCore"
+      }
+    }
+  }

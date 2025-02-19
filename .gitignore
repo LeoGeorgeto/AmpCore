@@ -1,0 +1,19 @@
+# Node modules
+node_modules/
+
+# Build artifacts
+dist/
+build/
+
+# Editor & system files
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Compiled binary files
+*.node
+
+# OS-specific files
+*.swp
+*.swo

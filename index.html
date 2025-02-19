@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>AmpCore</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="header">
+    <h1>AmpCore</h1>
+  </div>
+  <div class="mixer-container" id="mixer-container"></div>
+  <script>
+    const { ipcRenderer } = require('electron'); // Import Electron's IPC module for communication with the main process
+    const mixerContainer = document.getElementById('mixer-container'); // Reference to the container where audio session elements will be added
+    let currentSessions = {}; // Store active audio sessions
+
+    // Listen for updates from the main process regarding audio sessions
+    ipcRenderer.on('audio-sessions-update', (event, audioSessions) => {
+      let activeSessionIds = new Set(audioSessions.map(session => session.id)); // Create a set of active session IDs
+
+      // Remove any session elements that no longer exist
+      Object.keys(currentSessions).forEach(sessionId => {
+        if (!activeSessionIds.has(sessionId)) {
+          let element = document.querySelector(`[data-session-id='${sessionId}']`);
+          if (element) {
+            element.classList.add('removing'); // Add a CSS class to trigger removal animation
+            setTimeout(() => {
+              element.remove(); // Remove the element after animation completes
+              delete currentSessions[sessionId]; // Remove session from tracking
+            }, 300); // Matches CSS animation duration for smooth fade-out
+          }
+        }
+      });
+
+      // Add new sessions if they do not already exist
+      audioSessions.forEach(session => {
+        if (!currentSessions[session.id]) {
+          const channelElement = createChannelElement(session);
+          
+          // Create and configure Mute Button
+          const muteButton = document.createElement('button');
+          muteButton.className = 'mute-button';
+          muteButton.textContent = session.muted ? 'Unmute' : 'Mute';
+          if (session.muted) muteButton.classList.add('muted'); // Apply muted styling if needed
+
+          // Toggle mute state when button is clicked
+          muteButton.addEventListener('click', () => {
+            const isMuted = muteButton.classList.contains('muted');
+            muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
+            muteButton.classList.toggle('muted', !isMuted);
+            ipcRenderer.send('toggle-mute', { sessionId: session.id, mute: !isMuted });
+          });
+          
+          channelElement.appendChild(muteButton); // Append mute button to session element
+          
+          mixerContainer.appendChild(channelElement); // Add new session element to the mixer
+          currentSessions[session.id] = session; // Track session
+        }
+      });
+    });
+
+    /**
+     * Creates a UI element for an audio session.
+     * @param {Object} session - The audio session object containing metadata.
+     * @returns {HTMLElement} - The constructed DOM element representing the session.
+     */
+    function createChannelElement(session) {
+      const channelDiv = document.createElement('div');
+      channelDiv.className = 'app-channel';
+      channelDiv.dataset.sessionId = session.id; // Store session ID for reference
+
+      // Apply fade-in effect for smooth appearance
+      setTimeout(() => {
+        channelDiv.classList.add('fade-in');
+      }, 10);
+
+      // Create session icon (first letter of the session name)
+      const iconDiv = document.createElement('div');
+      iconDiv.className = 'app-icon';
+      iconDiv.textContent = session.name.charAt(0).toUpperCase();
+
+      // Display session name
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'app-name';
+      nameDiv.textContent = session.name;
+
+      // Create volume control container
+      const volumeControl = document.createElement('div');
+      volumeControl.className = 'volume-control';
+      
+      // Create and configure volume slider
+      const volumeSlider = document.createElement('input');
+      volumeSlider.type = 'range';
+      volumeSlider.min = 0;
+      volumeSlider.max = 100;
+      volumeSlider.value = session.volume;
+      volumeSlider.className = 'volume-slider';
+      
+      // Display current volume level
+      const volumeDisplay = document.createElement('div');
+      volumeDisplay.className = 'volume-display';
+      volumeDisplay.textContent = `${session.volume}%`;
+      
+      // Handle volume changes
+      volumeSlider.addEventListener('input', (e) => {
+        const volumeValue = Number(e.target.value);
+        volumeDisplay.textContent = `${volumeValue}%`;
+        ipcRenderer.send('set-volume', { sessionId: session.id, volume: volumeValue });
+      });
+      
+      // Append volume control elements
+      volumeControl.appendChild(volumeSlider);
+      volumeControl.appendChild(volumeDisplay);
+      
+      // Assemble session element
+      channelDiv.appendChild(iconDiv);
+      channelDiv.appendChild(nameDiv);
+      channelDiv.appendChild(volumeControl);
+      
+      return channelDiv;
+    }
+
+    // Request the initial list of audio sessions from the main process
+    ipcRenderer.send('request-audio-sessions');
+  </script>
+</body>
+</html>
