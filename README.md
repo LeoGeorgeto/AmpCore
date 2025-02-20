@@ -7,7 +7,7 @@ AmpCore is a cross-platform desktop application built using Electron, allowing u
 - Real-time audio session monitoring
 - Control application volumes individually
 - Mute/unmute applications
-- Cross-platform support (Windows, macOS, Linux (pending testing))
+- Cross-platform support (Windows, macOS, Linux)
 
 ## Installation
 ### Prerequisites

@@ -8,12 +8,159 @@
 <body>
   <div class="header">
     <h1>AmpCore</h1>
+    <button id="menuButton" class="menu-button">☰</button>
   </div>
+  
+  <div id="sideMenu" class="side-menu">
+    <div id="menuView">
+      <div class="menu-header">
+        <button id="closeMenu" class="close-button">✕</button>
+        <h2 class="menu-title">Menu</h2>
+      </div>
+      <div class="menu-content">
+        <button id="exclusionsButton" class="menu-button-option">Exclusions</button>
+      </div>
+    </div>
+    
+    <div id="exclusionsView" style="display: none;">
+      <div class="menu-header">
+        <button class="back-button">←</button>
+        <button class="close-button">✕</button>
+        <h2 class="menu-title">Exclusions</h2>
+      </div>
+      <div class="menu-content">
+        <!-- Exclusions content will go here -->
+      </div>
+    </div>
+  </div>
+
   <div class="mixer-container" id="mixer-container"></div>
+
   <script>
     const { ipcRenderer } = require('electron'); // Import Electron's IPC module for communication with the main process
     const mixerContainer = document.getElementById('mixer-container'); // Reference to the container where audio session elements will be added
     let currentSessions = {}; // Store active audio sessions
+    let excludedSessions = new Set(); // Store excluded session IDs
+
+    // Function to populate exclusions list
+    function populateExclusionsList() {
+      const exclusionsContent = document.querySelector('#exclusionsView .menu-content');
+      exclusionsContent.innerHTML = ''; // Clear existing content
+      
+      // Add each excluded session that exists in currentSessions
+      excludedSessions.forEach(sessionId => {
+        if (currentSessions[sessionId]) {
+          const excludedButton = createExcludedAppButton(currentSessions[sessionId]);
+          exclusionsContent.appendChild(excludedButton);
+        }
+      });
+    }
+
+    // Load saved exclusions when starting up
+    ipcRenderer.send('request-exclusions');
+    
+    // Handle loaded exclusions
+    ipcRenderer.on('exclusions-loaded', (event, savedExclusions) => {
+      console.log('Loaded exclusions:', savedExclusions);
+      excludedSessions = new Set(savedExclusions);
+
+      // If we already have current sessions, update their visibility
+      Object.values(currentSessions).forEach(session => {
+        if (excludedSessions.has(session.id)) {
+          // Remove from main view if present
+          const element = document.querySelector(`[data-session-id='${session.id}']`);
+          if (element) {
+            element.remove();
+          }
+        }
+      });
+      
+      // Populate exclusions list
+      populateExclusionsList();
+    });
+
+    // Function to create an excluded app button
+    function createExcludedAppButton(session) {
+      const button = document.createElement('button');
+      button.className = 'excluded-app-button';
+      
+      const icon = document.createElement('div');
+      icon.className = 'excluded-app-icon';
+      icon.textContent = session.name.charAt(0).toUpperCase();
+      
+      const name = document.createElement('span');
+      name.textContent = session.name;
+      
+      button.appendChild(icon);
+      button.appendChild(name);
+      
+      button.addEventListener('click', () => {
+        // Remove from exclusions
+        excludedSessions.delete(session.id);
+        button.remove();
+        
+        // Update main view
+        if (currentSessions[session.id]) {
+          const channelElement = createChannelElement(currentSessions[session.id]);
+          mixerContainer.appendChild(channelElement);
+        }
+
+        // Save updated exclusions
+        ipcRenderer.send('update-exclusions', Array.from(excludedSessions));
+      });
+      
+      return button;
+    }
+
+    // Function to handle session exclusion
+    function excludeSession(sessionId, visibilityButton) {
+      // Prevent multiple clicks
+      if (visibilityButton.disabled) return;
+      
+      // Disable the button immediately
+      visibilityButton.disabled = true;
+      visibilityButton.style.opacity = '0.5';
+      
+      excludedSessions.add(sessionId);
+      const session = currentSessions[sessionId];
+      
+      // Add to exclusions list
+      const exclusionsContent = document.querySelector('#exclusionsView .menu-content');
+      const existingExclusions = Array.from(exclusionsContent.children);
+      const isDuplicate = existingExclusions.some(button => 
+        button.querySelector('span').textContent === session.name
+      );
+      
+      if (!isDuplicate) {
+        const excludedButton = createExcludedAppButton(session);
+        exclusionsContent.appendChild(excludedButton);
+      }
+      
+      // Remove from main view with animation
+      const element = document.querySelector(`[data-session-id='${sessionId}']`);
+      if (element) {
+        element.classList.add('removing');
+        setTimeout(() => {
+          element.remove();
+        }, 300);
+      }
+
+      // Save exclusions to storage
+      ipcRenderer.send('update-exclusions', Array.from(excludedSessions));
+    }
+
+    // Function to check if a session should be treated as a duplicate
+    function isDuplicateSession(session) {
+      // Look through existing sessions
+      return Object.values(currentSessions).some(existingSession => {
+        // Check if there's already a session with the same name
+        // and if the existing session is not the same instance (different IDs)
+        return existingSession.name === session.name && 
+               existingSession.id !== session.id &&
+               // Only consider it a duplicate if the existing session was recently active
+               (Date.now() - existingSession.lastSeen < 5000); // 5 second threshold
+      });
+    }
 
     // Listen for updates from the main process regarding audio sessions
     ipcRenderer.on('audio-sessions-update', (event, audioSessions) => {
@@ -33,31 +180,34 @@
         }
       });
 
-      // Add new sessions if they do not already exist
+      // Add new sessions if they do not already exist and are not excluded
       audioSessions.forEach(session => {
-        if (!currentSessions[session.id]) {
-          const channelElement = createChannelElement(session);
-          
-          // Create and configure Mute Button
-          const muteButton = document.createElement('button');
-          muteButton.className = 'mute-button';
-          muteButton.textContent = session.muted ? 'Unmute' : 'Mute';
-          if (session.muted) muteButton.classList.add('muted'); // Apply muted styling if needed
-
-          // Toggle mute state when button is clicked
-          muteButton.addEventListener('click', () => {
-            const isMuted = muteButton.classList.contains('muted');
-            muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
-            muteButton.classList.toggle('muted', !isMuted);
-            ipcRenderer.send('toggle-mute', { sessionId: session.id, mute: !isMuted });
-          });
-          
-          channelElement.appendChild(muteButton); // Append mute button to session element
-          
-          mixerContainer.appendChild(channelElement); // Add new session element to the mixer
-          currentSessions[session.id] = session; // Track session
+        // Check if this is a duplicate notification sound from an existing app
+        if (isDuplicateSession(session)) {
+          return; // Skip this session
+        }
+        
+        // Update currentSessions with timestamp
+        session.lastSeen = Date.now();
+        currentSessions[session.id] = session;
+        
+        // Only create UI elements for non-excluded sessions if they don't already exist
+        const existingElement = document.querySelector(`[data-session-id='${session.id}']`);
+        if (!excludedSessions.has(session.id)) {
+          if (!existingElement) {
+            const channelElement = createChannelElement(session);
+            mixerContainer.appendChild(channelElement);
+          }
+        } else {
+          // If it's excluded, ensure it's not in the main view
+          if (existingElement) {
+            existingElement.remove();
+          }
         }
       });
+
+      // Repopulate exclusions list
+      populateExclusionsList();
     });
 
     /**
@@ -69,6 +219,28 @@
       const channelDiv = document.createElement('div');
       channelDiv.className = 'app-channel';
       channelDiv.dataset.sessionId = session.id; // Store session ID for reference
+
+      // Add close button for hiding the application
+      const closeButton = document.createElement('button');
+      closeButton.className = 'channel-close-button';
+      
+      // Create and add the icon image
+      const hideIcon = document.createElement('img');
+      hideIcon.src = './resources/hide.svg';
+      hideIcon.alt = 'Hide';
+      hideIcon.className = 'hide-icon';
+      closeButton.appendChild(hideIcon);
+      
+      closeButton.title = 'Hide this application';
+      closeButton.addEventListener('click', () => {
+        excludeSession(session.id, closeButton);
+      });
+
+      // Create a container for the close button to ensure it stays within bounds
+      const closeButtonContainer = document.createElement('div');
+      closeButtonContainer.className = 'close-button-container';
+      closeButtonContainer.appendChild(closeButton);
+      channelDiv.appendChild(closeButtonContainer);
 
       // Apply fade-in effect for smooth appearance
       setTimeout(() => {
@@ -109,6 +281,20 @@
         ipcRenderer.send('set-volume', { sessionId: session.id, volume: volumeValue });
       });
       
+      // Create and configure Mute Button
+      const muteButton = document.createElement('button');
+      muteButton.className = 'mute-button';
+      muteButton.textContent = session.muted ? 'Unmute' : 'Mute';
+      if (session.muted) muteButton.classList.add('muted'); // Apply muted styling if needed
+
+      // Toggle mute state when button is clicked
+      muteButton.addEventListener('click', () => {
+        const isMuted = muteButton.classList.contains('muted');
+        muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
+        muteButton.classList.toggle('muted', !isMuted);
+        ipcRenderer.send('toggle-mute', { sessionId: session.id, mute: !isMuted });
+      });
+
       // Append volume control elements
       volumeControl.appendChild(volumeSlider);
       volumeControl.appendChild(volumeDisplay);
@@ -117,12 +303,44 @@
       channelDiv.appendChild(iconDiv);
       channelDiv.appendChild(nameDiv);
       channelDiv.appendChild(volumeControl);
+      channelDiv.appendChild(muteButton);
       
       return channelDiv;
     }
 
     // Request the initial list of audio sessions from the main process
     ipcRenderer.send('request-audio-sessions');
+
+    // Menu handling
+    const menuButton = document.getElementById('menuButton');
+    const sideMenu = document.getElementById('sideMenu');
+    const closeButtons = document.querySelectorAll('.close-button');
+    const backButton = document.querySelector('.back-button');
+    const exclusionsButton = document.getElementById('exclusionsButton');
+    const menuView = document.getElementById('menuView');
+    const exclusionsView = document.getElementById('exclusionsView');
+
+    menuButton.addEventListener('click', () => {
+      sideMenu.classList.add('open');
+      menuView.style.display = 'block';
+      exclusionsView.style.display = 'none';
+    });
+
+    closeButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        sideMenu.classList.remove('open');
+      });
+    });
+
+    backButton.addEventListener('click', () => {
+      exclusionsView.style.display = 'none';
+      menuView.style.display = 'block';
+    });
+
+    exclusionsButton.addEventListener('click', () => {
+      menuView.style.display = 'none';
+      exclusionsView.style.display = 'block';
+    });
   </script>
 </body>
 </html>

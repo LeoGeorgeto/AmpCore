@@ -1,9 +1,33 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const audioController = require('bindings')('windows_audio_controller');
 
 let mainWindow;
 let lastAudioSessions = {};
+const EXCLUSIONS_FILE = path.join(app.getPath('userData'), 'exclusions.json');
+
+// Load exclusions from file
+function loadExclusions() {
+  try {
+    if (fs.existsSync(EXCLUSIONS_FILE)) {
+      const data = fs.readFileSync(EXCLUSIONS_FILE, 'utf8');
+      return new Set(JSON.parse(data));
+    }
+  } catch (error) {
+    console.error('Error loading exclusions:', error);
+  }
+  return new Set();
+}
+
+// Save exclusions to file
+function saveExclusions(exclusions) {
+  try {
+    fs.writeFileSync(EXCLUSIONS_FILE, JSON.stringify(Array.from(exclusions)));
+  } catch (error) {
+    console.error('Error saving exclusions:', error);
+  }
+}
 
 /**
  * Creates the main application window.
@@ -112,6 +136,17 @@ ipcMain.on('toggle-mute', (event, { sessionId }) => {
 ipcMain.on('request-audio-sessions', (event) => {
   console.log("Renderer requested audio sessions. Sending...");
   event.sender.send('audio-sessions-update', Object.values(lastAudioSessions));
+});
+
+// Handle exclusion updates
+ipcMain.on('update-exclusions', (event, exclusions) => {
+  saveExclusions(exclusions);
+});
+
+// Send initial exclusions to renderer
+ipcMain.on('request-exclusions', (event) => {
+  const exclusions = loadExclusions();
+  event.reply('exclusions-loaded', Array.from(exclusions));
 });
 
 // Set up periodic updates for audio sessions
