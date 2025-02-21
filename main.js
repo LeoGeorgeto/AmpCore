@@ -6,6 +6,7 @@ const audioController = require('bindings')('windows_audio_controller');
 let mainWindow;
 let lastAudioSessions = {};
 const EXCLUSIONS_FILE = path.join(app.getPath('userData'), 'exclusions.json');
+const MUTE_STATES_FILE = path.join(app.getPath('userData'), 'muteStates.json');
 
 // Load exclusions from file
 function loadExclusions() {
@@ -28,6 +29,31 @@ function saveExclusions(exclusions) {
     console.error('Error saving exclusions:', error);
   }
 }
+
+// Load mute states from file
+function loadMuteStates() {
+  try {
+    if (fs.existsSync(MUTE_STATES_FILE)) {
+      const data = fs.readFileSync(MUTE_STATES_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading mute states:', error);
+  }
+  return {};
+}
+
+// Save mute states to file
+function saveMuteStates(muteStates) {
+  try {
+    fs.writeFileSync(MUTE_STATES_FILE, JSON.stringify(muteStates));
+  } catch (error) {
+    console.error('Error saving mute states:', error);
+  }
+}
+
+// Initialize mute states on app startup
+let savedMuteStates = loadMuteStates();
 
 /**
  * Creates the main application window.
@@ -78,6 +104,16 @@ function sendAudioSessions() {
     // Track new and existing sessions
     audioSessions.forEach(session => {
       updatedSessions[session.id] = session;
+      
+      // Apply saved mute state if available
+      if (savedMuteStates[session.name] !== undefined) {
+        // Only update if the current mute state differs from saved state
+        if (session.muted !== savedMuteStates[session.name]) {
+          audioController.setMute(session.id, savedMuteStates[session.name]);
+          session.muted = savedMuteStates[session.name];
+        }
+      }
+      
       if (!lastAudioSessions[session.id]) {
         hasChanges = true; // New session detected
       }
@@ -125,6 +161,11 @@ ipcMain.on('toggle-mute', (event, { sessionId }) => {
     audioController.setMute(sessionId, newMuteState);
 
     lastAudioSessions[sessionId].muted = newMuteState;
+    
+    // Save the mute state by application name
+    const sessionName = lastAudioSessions[sessionId].name;
+    savedMuteStates[sessionName] = newMuteState;
+    saveMuteStates(savedMuteStates);
 
     event.sender.send('mute-updated', { sessionId, muted: newMuteState });
   });
@@ -147,6 +188,24 @@ ipcMain.on('update-exclusions', (event, exclusions) => {
 ipcMain.on('request-exclusions', (event) => {
   const exclusions = loadExclusions();
   event.reply('exclusions-loaded', Array.from(exclusions));
+});
+
+// Send saved mute states to renderer when requested
+ipcMain.on('request-mute-states', (event) => {
+  event.reply('mute-states-loaded', savedMuteStates);
+});
+
+// Handle saving mute state from renderer
+ipcMain.on('save-mute-state', (event, { appName, muted }) => {
+  if (!appName) return;
+  
+  console.log(`Saving mute state for ${appName}: ${muted}`);
+  
+  // Update the in-memory state
+  savedMuteStates[appName] = muted;
+  
+  // Save to disk
+  saveMuteStates(savedMuteStates);
 });
 
 // Set up periodic updates for audio sessions

@@ -41,6 +41,7 @@
     const mixerContainer = document.getElementById('mixer-container'); // Reference to the container where audio session elements will be added
     let currentSessions = {}; // Store active audio sessions
     let excludedSessions = new Set(); // Store excluded session IDs
+    let savedMuteStates = {}; // Store saved mute states
 
     // Function to populate exclusions list
     function populateExclusionsList() {
@@ -58,6 +59,30 @@
 
     // Load saved exclusions when starting up
     ipcRenderer.send('request-exclusions');
+    
+    // Load saved mute states when starting up
+    ipcRenderer.send('request-mute-states');
+    
+    // Handle loaded mute states
+    ipcRenderer.on('mute-states-loaded', (event, muteStates) => {
+      console.log('Loaded mute states:', muteStates);
+      savedMuteStates = muteStates;
+      
+      // Apply to any existing channels in the UI
+      Object.values(currentSessions).forEach(session => {
+        if (savedMuteStates[session.name] !== undefined) {
+          const element = document.querySelector(`[data-session-id='${session.id}']`);
+          if (element) {
+            const muteButton = element.querySelector('.mute-button');
+            if (muteButton) {
+              const shouldBeMuted = savedMuteStates[session.name];
+              muteButton.textContent = shouldBeMuted ? 'Unmute' : 'Mute';
+              muteButton.classList.toggle('muted', shouldBeMuted);
+            }
+          }
+        }
+      });
+    });
     
     // Handle loaded exclusions
     ipcRenderer.on('exclusions-loaded', (event, savedExclusions) => {
@@ -101,8 +126,18 @@
         
         // Update main view
         if (currentSessions[session.id]) {
+          // Store current mute state before creating new element
+          const currentMuteState = currentSessions[session.id].muted;
+          
           const channelElement = createChannelElement(currentSessions[session.id]);
           mixerContainer.appendChild(channelElement);
+          
+          // Ensure the mute button has the correct state
+          const muteButton = channelElement.querySelector('.mute-button');
+          if (muteButton) {
+            muteButton.textContent = currentMuteState ? 'Unmute' : 'Mute';
+            muteButton.classList.toggle('muted', currentMuteState);
+          }
         }
 
         // Save updated exclusions
@@ -123,6 +158,19 @@
       
       excludedSessions.add(sessionId);
       const session = currentSessions[sessionId];
+      
+      // Save the current mute state before hiding the app
+      if (session) {
+        const muteButton = document.querySelector(`[data-session-id='${sessionId}'] .mute-button`);
+        const isMuted = muteButton ? muteButton.classList.contains('muted') : session.muted;
+        
+        // Ensure the mute state in currentSessions is current
+        session.muted = isMuted;
+        
+        // Update saved mute states with current state
+        savedMuteStates[session.name] = isMuted;
+        ipcRenderer.send('save-mute-state', { appName: session.name, muted: isMuted });
+      }
       
       // Add to exclusions list
       const exclusionsContent = document.querySelector('#exclusionsView .menu-content');
@@ -287,12 +335,22 @@
       muteButton.textContent = session.muted ? 'Unmute' : 'Mute';
       if (session.muted) muteButton.classList.add('muted'); // Apply muted styling if needed
 
+      // Override with saved mute state if available
+      if (savedMuteStates[session.name] !== undefined) {
+        const shouldBeMuted = savedMuteStates[session.name];
+        // Only override if different from current state
+        if (session.muted !== shouldBeMuted) {
+          muteButton.textContent = shouldBeMuted ? 'Unmute' : 'Mute';
+          muteButton.classList.toggle('muted', shouldBeMuted);
+        }
+      }
+
       // Toggle mute state when button is clicked
       muteButton.addEventListener('click', () => {
         const isMuted = muteButton.classList.contains('muted');
         muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
         muteButton.classList.toggle('muted', !isMuted);
-        ipcRenderer.send('toggle-mute', { sessionId: session.id, mute: !isMuted });
+        ipcRenderer.send('toggle-mute', { sessionId: session.id });
       });
 
       // Append volume control elements
