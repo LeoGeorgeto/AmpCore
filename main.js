@@ -152,14 +152,10 @@ ipcMain.on('set-volume', (event, { sessionId, volume }) => {
 /**
  * Handles mute toggle requests from the renderer.
  */
-ipcMain.on('toggle-mute', (event, { sessionId }) => {
+ipcMain.on('toggle-mute', (event, { sessionId, newMuteState }) => {
   console.log(`Toggling mute: SessionID=${sessionId}`);
   setImmediate(() => {
-    if (!lastAudioSessions[sessionId]) return;
-
-    const newMuteState = !lastAudioSessions[sessionId].muted;
     audioController.setMute(sessionId, newMuteState);
-
     lastAudioSessions[sessionId].muted = newMuteState;
     
     // Save the mute state by application name

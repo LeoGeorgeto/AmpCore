@@ -14,7 +14,9 @@
   <div id="sideMenu" class="side-menu">
     <div id="menuView">
       <div class="menu-header">
-        <button id="closeMenu" class="close-button">✕</button>
+        <div class="button-container">
+          <button class="close-button">✕</button>
+        </div>
         <h2 class="menu-title">Menu</h2>
       </div>
       <div class="menu-content">
@@ -24,8 +26,10 @@
     
     <div id="exclusionsView" style="display: none;">
       <div class="menu-header">
-        <button class="back-button">←</button>
-        <button class="close-button">✕</button>
+        <div class="button-container">
+          <button class="close-button">✕</button>
+          <button class="back-button">←</button>
+        </div>
         <h2 class="menu-title">Exclusions</h2>
       </div>
       <div class="menu-content">
@@ -161,8 +165,8 @@
       
       // Save the current mute state before hiding the app
       if (session) {
-        const muteButton = document.querySelector(`[data-session-id='${sessionId}'] .mute-button`);
-        const isMuted = muteButton ? muteButton.classList.contains('muted') : session.muted;
+        const element = document.querySelector(`[data-session-id='${sessionId}']`);
+        const isMuted = element ? element.classList.contains('muted') : session.muted;
         
         // Ensure the mute state in currentSessions is current
         session.muted = isMuted;
@@ -279,8 +283,9 @@
       hideIcon.className = 'hide-icon';
       closeButton.appendChild(hideIcon);
       
-      closeButton.title = 'Hide this application';
-      closeButton.addEventListener('click', () => {
+      closeButton.title = 'Hide';
+      closeButton.addEventListener('click', (e) => {
+        e.stopPropagation();
         excludeSession(session.id, closeButton);
       });
 
@@ -324,33 +329,31 @@
       
       // Handle volume changes
       volumeSlider.addEventListener('input', (e) => {
+        e.stopPropagation();
         const volumeValue = Number(e.target.value);
         volumeDisplay.textContent = `${volumeValue}%`;
         ipcRenderer.send('set-volume', { sessionId: session.id, volume: volumeValue });
       });
-      
-      // Create and configure Mute Button
-      const muteButton = document.createElement('button');
-      muteButton.className = 'mute-button';
-      muteButton.textContent = session.muted ? 'Unmute' : 'Mute';
-      if (session.muted) muteButton.classList.add('muted'); // Apply muted styling if needed
 
       // Override with saved mute state if available
       if (savedMuteStates[session.name] !== undefined) {
         const shouldBeMuted = savedMuteStates[session.name];
-        // Only override if different from current state
-        if (session.muted !== shouldBeMuted) {
-          muteButton.textContent = shouldBeMuted ? 'Unmute' : 'Mute';
-          muteButton.classList.toggle('muted', shouldBeMuted);
-        }
+        channelDiv.classList.toggle('muted', shouldBeMuted);
       }
 
       // Toggle mute state when button is clicked
-      muteButton.addEventListener('click', () => {
-        const isMuted = muteButton.classList.contains('muted');
-        muteButton.textContent = isMuted ? 'Mute' : 'Unmute';
-        muteButton.classList.toggle('muted', !isMuted);
-        ipcRenderer.send('toggle-mute', { sessionId: session.id });
+      channelDiv.addEventListener('click', (e) => {
+        // Don't trigger this if clicking on other interactive elements
+        if (e.target.closest('.channel-close-button') || 
+            e.target.closest('.volume-slider')) {
+          return;
+        }
+        // Compute the new state based on current UI state
+        const newMuteState = !channelDiv.classList.contains('muted');
+        // Update the UI based on the new state
+        channelDiv.classList.toggle('muted', newMuteState);
+        // Send the desired state to the main process
+        ipcRenderer.send('toggle-mute', { sessionId: session.id, newMuteState });
       });
 
       // Append volume control elements
@@ -361,7 +364,6 @@
       channelDiv.appendChild(iconDiv);
       channelDiv.appendChild(nameDiv);
       channelDiv.appendChild(volumeControl);
-      channelDiv.appendChild(muteButton);
       
       return channelDiv;
     }
@@ -378,12 +380,6 @@
     const menuView = document.getElementById('menuView');
     const exclusionsView = document.getElementById('exclusionsView');
 
-    menuButton.addEventListener('click', () => {
-      sideMenu.classList.add('open');
-      menuView.style.display = 'block';
-      exclusionsView.style.display = 'none';
-    });
-
     closeButtons.forEach(button => {
       button.addEventListener('click', () => {
         sideMenu.classList.remove('open');
@@ -395,9 +391,35 @@
       menuView.style.display = 'block';
     });
 
+    // Function to position close buttons correctly
+    function positionCloseButtons() {
+      // Handle close button in the main menu view (solo button)
+      const menuViewCloseButton = document.querySelector('#menuView .close-button');
+      if (menuViewCloseButton) {
+        menuViewCloseButton.style.left = '20px';
+      }
+      
+      // Handle close button in the exclusions view (has back button)
+      const exclusionsViewCloseButton = document.querySelector('#exclusionsView .close-button');
+      if (exclusionsViewCloseButton) {
+        exclusionsViewCloseButton.style.left = '60px';
+      }
+    }
+
+    // Call this function after the page loads
+    document.addEventListener('DOMContentLoaded', positionCloseButtons);
+
+    menuButton.addEventListener('click', () => {
+      sideMenu.classList.add('open');
+      menuView.style.display = 'block';
+      exclusionsView.style.display = 'none';
+      positionCloseButtons();
+    });
+
     exclusionsButton.addEventListener('click', () => {
       menuView.style.display = 'none';
       exclusionsView.style.display = 'block';
+      positionCloseButtons();
     });
   </script>
 </body>
