@@ -32,6 +32,9 @@
         </div>
         <h2 class="menu-title">Exclusions</h2>
       </div>
+      <div class="exclusions-instructions">
+        Tap to remove
+      </div>
       <div class="menu-content">
         <!-- Exclusions content will go here -->
       </div>
@@ -42,6 +45,7 @@
 
   <script>
     const { ipcRenderer } = require('electron'); // Import Electron's IPC module for communication with the main process
+    const path = require('path');
     const mixerContainer = document.getElementById('mixer-container'); // Reference to the container where audio session elements will be added
     let currentSessions = {}; // Store active audio sessions
     let excludedSessions = new Set(); // Store excluded session IDs
@@ -118,7 +122,11 @@
       icon.textContent = session.name.charAt(0).toUpperCase();
       
       const name = document.createElement('span');
-      name.textContent = session.name;
+      if (session.name == 'System Sounds') {
+        name.textContent = 'System';
+      } else {
+        name.textContent = session.name.charAt(0).toUpperCase() + session.name.slice(1);
+      }
       
       button.appendChild(icon);
       button.appendChild(name);
@@ -278,7 +286,13 @@
       
       // Create and add the icon image
       const hideIcon = document.createElement('img');
-      hideIcon.src = './resources/hide.svg';
+      if (process.resourcesPath) {
+        // We're in a production build
+        hideIcon.src = path.join(process.resourcesPath, 'resources', 'hide.svg');
+      } else {
+        // We're in development
+        hideIcon.src = './resources/hide.svg';
+      }
       hideIcon.alt = 'Hide';
       hideIcon.className = 'hide-icon';
       closeButton.appendChild(hideIcon);
@@ -300,15 +314,14 @@
         channelDiv.classList.add('fade-in');
       }, 10);
 
-      // Create session icon (first letter of the session name)
-      const iconDiv = document.createElement('div');
-      iconDiv.className = 'app-icon';
-      iconDiv.textContent = session.name.charAt(0).toUpperCase();
-
       // Display session name
       const nameDiv = document.createElement('div');
       nameDiv.className = 'app-name';
-      nameDiv.textContent = session.name;
+      if (session.name == 'System Sounds') {
+        nameDiv.textContent = 'System';
+      } else {
+        nameDiv.textContent = session.name.charAt(0).toUpperCase() + session.name.slice(1);
+      }
 
       // Create volume control container
       const volumeControl = document.createElement('div');
@@ -321,17 +334,19 @@
       volumeSlider.max = 100;
       volumeSlider.value = session.volume;
       volumeSlider.className = 'volume-slider';
+      volumeSlider.style.setProperty('--volume-percent', `${session.volume}%`);
       
       // Display current volume level
       const volumeDisplay = document.createElement('div');
       volumeDisplay.className = 'volume-display';
-      volumeDisplay.textContent = `${session.volume}%`;
+      volumeDisplay.textContent = `${Math.round(session.volume)}%`;
       
       // Handle volume changes
       volumeSlider.addEventListener('input', (e) => {
         e.stopPropagation();
-        const volumeValue = Number(e.target.value);
+        const volumeValue = Math.round(Number(e.target.value));
         volumeDisplay.textContent = `${volumeValue}%`;
+        volumeSlider.style.setProperty('--volume-percent', `${volumeValue}%`);
         ipcRenderer.send('set-volume', { sessionId: session.id, volume: volumeValue });
       });
 
@@ -361,7 +376,6 @@
       volumeControl.appendChild(volumeDisplay);
       
       // Assemble session element
-      channelDiv.appendChild(iconDiv);
       channelDiv.appendChild(nameDiv);
       channelDiv.appendChild(volumeControl);
       

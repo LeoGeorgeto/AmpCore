@@ -1,3 +1,8 @@
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
@@ -13,10 +18,7 @@ body {
   overflow-x: hidden;
 }
 
-* {
-  box-sizing: border-box;
-}
-
+/* Header Styles */
 .header {
   text-align: center;
   width: 100%;
@@ -30,7 +32,7 @@ body {
 }
 
 h1 {
-  position: relative; /* Establish positioning context for pseudo-elements */
+  position: relative;
   color: #4fc3f7;
   font-size: clamp(24px, 5vw, 36px);
   text-shadow: 0 0 10px rgba(79,195,247,0.5),
@@ -38,7 +40,7 @@ h1 {
   display: inline-block;
   padding: 15px 40px;
   background-color: rgba(79,195,247,0.1);
-  border: 2px solid #4fc3f7; /* 2px border so half is 1px */
+  border: 2px solid #4fc3f7;
   border-radius: 10px;
   box-shadow: 0 0 15px rgba(79,195,247,0.6);
   max-width: 90%;
@@ -47,21 +49,28 @@ h1 {
   white-space: nowrap;
 }
 
-/* Define the two dot pseudo-elements */
 h1::before,
 h1::after {
   content: "";
   position: absolute;
-  width: 12px;       /* Bigger dot size */
+  width: 12px;
   height: 12px;
   background-color: #80d8ff;
   border-radius: 50%;
-  box-shadow: 0 0 12px 3px #80d8ff; /* Intense glow */
-  transform: translate(-50%, -50%);  /* Centers the dot on its coordinate */
+  box-shadow: 0 0 12px 3px #80d8ff;
+  transform: translate(-50%, -50%); 
   z-index: 2;
 }
 
-/* Keyframes for the first dot starting at the top-left corner */
+h1::before {
+  animation: moveDot 4s linear infinite;
+}
+
+h1::after {
+  animation: moveDotOffset 4s linear infinite;
+}
+
+/* Animation Keyframes */
 @keyframes moveDot {
   0% {
     top: calc(0% + 2px);
@@ -85,7 +94,6 @@ h1::after {
   }
 }
 
-/* Keyframes for the second dot starting at the bottom-right corner */
 @keyframes moveDotOffset {
   0% {
     top: calc(100% - 2px);
@@ -109,15 +117,318 @@ h1::after {
   }
 }
 
-/* Apply the animations without delay; each dot follows its own path */
-h1::before {
-  animation: moveDot 4s linear infinite;
+/* Mixer Container Styles */
+.mixer-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 5px;
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-width: 280px;
+  overflow-x: auto; 
+  padding-bottom: 20px; 
+  padding-top: 20px; 
+  margin-top: 0px;
 }
 
-h1::after {
-  animation: moveDotOffset 4s linear infinite;
+/* App Channel Styles */
+.app-channel {
+  background-color: #2d2d2d;
+  padding: 12px 10px;
+  transition: transform 0.2s ease-out, opacity 0.3s ease-in-out;
+  will-change: transform, opacity;
+  transform: translateY(10px);
+  opacity: 0;
+  position: relative;
+  width: 100px;
+  margin-top: 10px;
+  border: 2px solid #4fc3f7;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(79,195,247,0.6);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 360px;
 }
 
+.app-channel::after {
+  content: "Tap to mute";
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: #aaa;
+  text-align: center;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.app-channel.muted {
+  border: 2px solid #f44336;
+  box-shadow: 0 0 15px rgba(244,67,54,0.6);
+}
+
+.app-channel.fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.app-channel.removing {
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.app-channel:hover {
+  transform: translateY(-5px);
+}
+
+.app-name {
+  text-align: center;
+  margin-top: 30px;
+  margin-bottom: 5px;
+  font-weight: 500;
+  font-size: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 90%;
+}
+
+/* Volume Control Styles */
+.volume-control {
+  width: 100%;
+  margin-bottom: 10px;
+  margin-top: 10px;
+  min-width: 80px;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding-bottom: 25px;
+}
+
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  width: 200px; 
+  margin-top: 100px;
+  background: #555;
+  outline: none;
+  border-radius: 3px;
+  transform: rotate(270deg);
+  transform-origin: center;
+  --volume-percent: 0%;
+  background: none;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #4fc3f7 var(--volume-percent), #555 var(--volume-percent));
+  animation: flowingEnergyBlue 3s infinite ease-in-out;
+  box-shadow: 0 0 5px rgba(79, 195, 247, 0.3);
+  will-change: background;
+}
+
+.app-channel.muted .volume-slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #f44336 var(--volume-percent), #555 var(--volume-percent));
+  animation: flowingEnergyRed 3s infinite ease-in-out;
+  box-shadow: 0 0 5px rgba(244, 67, 54, 0.3);
+  will-change: background;
+}
+
+.app-channel.muted .volume-slider {
+  background: linear-gradient(to right, #f44336 var(--volume-percent), #555 var(--volume-percent));
+  animation: flowingEnergyRed 3s infinite ease-in-out;
+  will-change: background;
+}
+
+@keyframes flowingEnergyBlue {
+  0% {
+    background: linear-gradient(90deg, 
+      #4fc3f7 0%, 
+      #29b6f6 35%, 
+      #0288d1 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+    background-size: 300% 100%;
+    background-position: 0% center;
+  }
+  33% {
+    background: linear-gradient(90deg, 
+      #0288d1 0%, 
+      #4fc3f7 35%, 
+      #29b6f6 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+    background-size: 300% 100%;
+    background-position: 33% center;
+  }
+  66% {
+    background: linear-gradient(90deg, 
+      #29b6f6 0%, 
+      #0288d1 35%, 
+      #4fc3f7 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+    background-size: 300% 100%;
+    background-position: 66% center;
+  }
+  100% {
+    background: linear-gradient(90deg, 
+      #4fc3f7 0%, 
+      #29b6f6 35%, 
+      #0288d1 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+  }
+}
+
+@keyframes flowingEnergyRed {
+  0% {
+    background: linear-gradient(90deg, 
+      #f44336 0%, 
+      #e53935 35%, 
+      #c62828 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+    background-size: 300% 100%;
+    background-position: 0% center;
+  }
+  33% {
+    background: linear-gradient(90deg, 
+      #c62828 0%, 
+      #f44336 35%, 
+      #e53935 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+    background-size: 300% 100%;
+    background-position: 33% center;
+  }
+  66% {
+    background: linear-gradient(90deg, 
+      #e53935 0%, 
+      #c62828 35%, 
+      #f44336 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+    background-size: 300% 100%;
+    background-position: 66% center;
+  }
+  100% {
+    background: linear-gradient(90deg, 
+      #f44336 0%, 
+      #e53935 35%, 
+      #c62828 70%, 
+      #555 var(--volume-percent), 
+      #555 100%
+    );
+  }
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 40px;
+  border-radius: 4px;
+  background: #dddddd;
+  cursor: pointer;
+  
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 3px rgba(0, 0, 0, 0.2),
+    inset 0 1px 2px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+  
+  background-image: linear-gradient(to bottom, 
+    #ffffff 0%, 
+    #f5f5f5 40%, 
+    #e0e0e0 70%, 
+    #d0d0d0 100%);
+  
+  transform: translateY(-17px);
+  transition: all 0.1s ease-out;
+}
+
+.volume-slider:hover::-webkit-slider-thumb {
+  background-image: linear-gradient(to bottom, 
+    #ffffff 0%, 
+    #f9f9f9 40%, 
+    #e8e8e8 70%, 
+    #d8d8d8 100%);
+  box-shadow: 
+    0 3px 10px rgba(0, 0, 0, 0.3),
+    0 0 4px rgba(0, 0, 0, 0.2),
+    inset 0 1px 3px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-17px) scale(1.05);
+}
+
+.volume-slider:active::-webkit-slider-thumb {
+  background-image: linear-gradient(to bottom, 
+    #f8f8f8 0%, 
+    #e8e8e8 40%, 
+    #d8d8d8 70%, 
+    #c8c8c8 100%);
+  box-shadow: 
+    0 1px 5px rgba(0, 0, 0, 0.3),
+    0 0 2px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-16px) scale(0.98);
+}
+
+.app-channel.muted .volume-slider::-webkit-slider-thumb {
+  background: #d5d5d5;
+  border-color: #888888;
+  box-shadow: 0 2px 3px rgba(244,67,54,0.3);
+  background-image: linear-gradient(to bottom, #e5e5e5, #c5c5c5);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4fc3f7;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 5px rgba(79,195,247,0.6);
+}
+
+.volume-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #555;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-display {
+  text-align: center;
+  font-size: 16px;
+  color: #fff;
+  position: absolute;
+  bottom: -80px;
+  left: 0;
+  right: 0;
+}
+
+/* Button Styles */
 .menu-button {
   position: absolute;
   right: 20px;
@@ -142,75 +453,13 @@ h1::after {
   background-color: rgba(79, 195, 247, 0.1);
 }
 
-.mixer-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
-  width: 90%;
-  max-width: 1200px;
-  margin: 0 auto;
-  min-width: 280px;
-  overflow-x: auto; 
-  padding-bottom: 20px; 
-  padding-top: 20px; 
-  margin-top: 20px;
-}
-
-.app-channel {
-  background-color: #2d2d2d;
-  padding: 15px;
-  transition: transform 0.2s ease-out, opacity 0.3s ease-in-out;
-  will-change: transform, opacity;
-  transform: translateY(10px);
-  opacity: 0;
-  position: relative;
-  min-width: 180px;
-  max-width: 100%;
-  border: 2px solid #4fc3f7;
-  border-radius: 10px;
-  box-shadow: 0 0 15px rgba(79,195,247,0.6);
-  cursor: pointer;
-}
-
-/* This will create text that is ALWAYS visible (no transitions or opacity changes) */
-.app-channel::after {
-  content: "Tap to toggle mute";
-  position: absolute;
-  bottom: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: #aaa;
-  text-align: center;
-  opacity: 1; /* Fully visible at all times */
-  pointer-events: none; /* So it doesn't interfere with clicks */
-}
-
-.app-channel.muted {
-  border: 2px solid #f44336;
-  box-shadow: 0 0 15px rgba(244,67,54,0.6);
-}
-.app-channel.fade-in {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.app-channel.removing {
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
-}
-
-.app-channel:hover {
-  transform: translateY(-5px);
-}
-
+/* Close Button Styles */
 .close-button-container {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 40px;
-  height: 40px;
+  top: 3px;
+  right: 3px;
+  width: 30px;
+  height: 30px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -220,19 +469,20 @@ h1::after {
 
 .app-channel .channel-close-button {
   background: #2d2d2d;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #aaa;
   border-radius: 50%;
-  color: #e0e0e0;
+  color: #aaa;
   cursor: pointer;
   padding: 0;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  opacity: 0.5;
 }
 
 .app-channel .channel-close-button .hide-icon {
@@ -245,118 +495,15 @@ h1::after {
   color: #4fc3f7;
   border-color: #4fc3f7;
   transform: scale(1.1);
+  opacity: 1;
 }
 
-.app-icon {
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
-  margin: 0 auto 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  color: #fff;
-  background-color: #444;
-  border-radius: 6px;
-}
-
-.app-name {
-  text-align: center;
-  margin-bottom: 15px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-
-.volume-control {
-  width: 100%;
-  margin-bottom: 15px;
-  min-width: 150px;
-}
-
-.volume-slider {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: #555;
-  outline: none;
-  cursor: pointer;
-}
-
-.volume-display {
-  text-align: center;
-  font-size: 14px;
-  color: #aaa;
-  margin-top: 5px;
-}
-
-.mute-button {
-  display: block;
-  width: 100%;
-  min-width: 80px;
-  max-width: 100%;
-  padding: 8px;
-  margin-top: 5px;
-  background-color: #333;
-  color: #e0e0e0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-  position: relative;
-  overflow: hidden;
-}
-
-.mute-button:hover {
-  background-color: #444;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.mute-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.mute-button::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
-  transition: left 0.5s ease-in-out;
-}
-
-.mute-button:hover::before {
-  left: 100%;
-}
-
-.mute-button.muted {
-  background-color: #f44336;
-  color: white;
-}
-
-.mute-button.muted:hover {
-  background-color: #e53935;
-}
-
+/* Side Menu Styles */
 .side-menu {
   position: fixed;
   top: 0;
-  right: -320px;
-  width: min(320px, 80vw);
+  right: -260px;
+  width: min(260px, 80vw);
   height: 100vh;
   background-color: #2d2d2d;
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
@@ -381,7 +528,7 @@ h1::after {
 
 .menu-title {
   position: absolute;
-  top: 50%;
+  top: 42%;
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
@@ -393,6 +540,9 @@ h1::after {
   white-space: nowrap;
   text-decoration: underline;
   text-underline-offset: 4px;
+  color: #4fc3f7;
+  text-shadow: 0 0 10px rgba(79,195,247,0.5),
+               0 0 20px rgba(79,195,247,0.3);
 }
 
 .close-button, .back-button {
@@ -453,6 +603,7 @@ h1::after {
   top: 10px; 
 }
 
+/* Menu Content Styles */
 .menu-content {
   padding: 20px;
   display: flex;
@@ -475,13 +626,13 @@ h1::after {
   background-color: #3d3d3d;
   border: none;
   color: #e0e0e0;
-  font-size: 16px;
+  font-size: 24px;
   font-weight: bold;
   cursor: pointer;
   border-radius: 4px;
   transition: background-color 0.2s, transform 0.1s;
-  width: 65%;
-  min-height: 42px;
+  width: 85%;
+  min-height: 60px;
   box-sizing: border-box;
   white-space: nowrap;
   overflow: hidden;
@@ -505,10 +656,10 @@ h1::after {
 }
 
 .excluded-app-icon {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
-  min-height: 24px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   background-color: #555;
   border-radius: 4px;
   margin-right: 8px;
@@ -517,10 +668,19 @@ h1::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 18px;
   color: #fff;
 }
 
+.exclusions-instructions {
+  text-align: center;
+  color: #aaa;
+  margin-bottom: -15px;
+  margin-top: 15px;
+  font-size: 14px;
+}
+
+/* Media Queries */
 @media screen and (max-width: 768px) {
   .mixer-container {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

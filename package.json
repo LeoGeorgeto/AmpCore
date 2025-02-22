@@ -36,6 +36,10 @@
           "from": "build/Release/",
           "to": ".",
           "filter": ["*.node"]
+        },
+        {
+          "from": "resources",
+          "to": "resources"
         }
       ],
       "directories": {

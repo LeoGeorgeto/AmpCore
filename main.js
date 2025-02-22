@@ -60,13 +60,14 @@ let savedMuteStates = loadMuteStates();
  */
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1000,
+    height: 750,
     title: "AmpCore",
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-    }
+    },
+    autoHideMenuBar: false,
   });
 
   mainWindow.loadFile('index.html');
@@ -77,10 +78,36 @@ function createWindow() {
     console.log("Renderer finished loading. Requesting audio sessions...");
     mainWindow.webContents.send('request-audio-sessions');
   });
+
+  // Event listener for fullscreen change
+  mainWindow.on('enter-full-screen', () => {
+    mainWindow.setMenuBarVisibility(false);
+  });
+
+  mainWindow.on('leave-full-screen', () => {
+    mainWindow.setMenuBarVisibility(true);
+  });
 }
 
-// Initialize the application when ready
-app.on('ready', createWindow);
+const { globalShortcut } = require('electron');
+
+app.on('ready', () => {
+  createWindow();
+  
+  // Register F11 shortcut for fullscreen toggle
+  globalShortcut.register('F11', () => {
+    if (mainWindow) {
+      const isFullScreen = mainWindow.isFullScreen();
+      mainWindow.setFullScreen(!isFullScreen);
+    }
+  });
+});
+
+// Make sure to unregister shortcuts when app is about to quit
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+});
+
 
 // Quit the app when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
